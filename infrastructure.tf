@@ -48,6 +48,15 @@ module "get_history_lambda" {
   common_tags   = local.common_tags
 }
 
+module "get_game_lambda" {
+  source = "./modules/lambda-get-game"
+
+  app_name            = var.app_name
+  environment         = var.environment
+  dynamodb_table_arn  = module.dynamodb.table_arn
+  dynamodb_table_name = module.dynamodb.table_name
+}
+
 # ECR
 module "ecr" {
   source          = "./modules/ecr"
@@ -95,4 +104,6 @@ module "api_gateway" {
   score_updater_lambda_function_name = module.score_updater_lambda.function_name
   get_history_lambda_invoke_arn      = module.get_history_lambda.invoke_arn
   get_history_lambda_function_name   = module.get_history_lambda.function_name
+  get_game_lambda_invoke_arn         = module.get_game_lambda.invoke_arn
+  get_game_lambda_function_name      = module.get_game_lambda.function_name
 }

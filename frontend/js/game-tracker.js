@@ -499,6 +499,50 @@ class GameTracker {
         document.getElementById('score2Btn').disabled = false;
     }
 
+    async getGame(gameId) {
+        try {
+            const response = await this.makeApiRequest(`/games/${gameId}`);
+            return response;
+        } catch (error) {
+            console.error('Error fetching game:', error);
+            throw error;
+        }
+    }
+
+    async resumeGame(gameId) {
+        try {
+            const game = await this.getGame(gameId);
+
+            // Set up the game state
+            this.currentGameId = gameId;
+            this.selectedGameType = game.game_type;
+            this.gameState = {
+                points: game.points,
+                games: game.games,
+                sets: game.sets,
+                status: game.status,
+                player1: game.player1,
+                player2: game.player2,
+                winner: game.winner
+            };
+
+            this.saveState();
+            this.showGameBoard();
+            this.closeHistory();
+
+            if (game.status === 'completed') {
+                this.handleGameCompletion(game.winner);
+                this.showToast(`Game completed - ${game.winner === 'player1' ? game.player1 : game.player2} won!`, 'info');
+            } else {
+                this.showToast(`Resumed game: ${game.player1} vs ${game.player2}`, 'success');
+            }
+
+        } catch (error) {
+            console.error('Error resuming game:', error);
+            this.showToast(`Failed to resume game: ${error.message}`, 'error');
+        }
+    }
+
     async showHistory() {
         const modal = document.getElementById('historyModal');
         const historyList = document.getElementById('historyList');
@@ -533,7 +577,12 @@ class GameTracker {
                 const winnerName = game.winner === 'player1' ? game.player1 : game.player2;
                 status = `<div class="history-status completed">🏆 Winner: ${winnerName}</div>`;
             } else {
-                status = '<div class="history-status in-progress">⏱️ In Progress</div>';
+                status = `
+                    <div class="history-status in-progress">⏱️ In Progress</div>
+                    <button class="btn btn-primary" onclick="gameTracker.resumeGame('${game.game_id}')" style="margin-top: 0.5rem;">
+                        ▶️ Resume Game
+                    </button>
+                `;
             }
 
             const tennisPoints = this.selectedGameType === 'tennis'

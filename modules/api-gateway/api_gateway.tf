@@ -77,6 +77,77 @@ resource "aws_api_gateway_resource" "history" {
   path_part   = "history"
 }
 
+resource "aws_api_gateway_resource" "game_by_id" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_resource.games.id
+  path_part   = "{game_id}"
+}
+
+resource "aws_api_gateway_method" "get_game" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.game_by_id.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_method" "game_id_options" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.game_by_id.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "get_game" {
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.game_by_id.id
+  http_method             = aws_api_gateway_method.get_game.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = var.get_game_lambda_invoke_arn
+}
+
+resource "aws_api_gateway_integration" "game_id_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.game_by_id.id
+  http_method = aws_api_gateway_method.game_id_options.http_method
+  type        = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "game_id_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.game_by_id.id
+  http_method = aws_api_gateway_method.game_id_options.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "game_id_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.game_by_id.id
+  http_method = aws_api_gateway_method.game_id_options.http_method
+  status_code = aws_api_gateway_method_response.game_id_options.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
+resource "aws_lambda_permission" "get_game" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.get_game_lambda_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
 resource "aws_api_gateway_method" "update_score" {
   rest_api_id   = aws_api_gateway_rest_api.this.id
   resource_id   = aws_api_gateway_resource.score.id
@@ -139,12 +210,14 @@ resource "aws_api_gateway_deployment" "this" {
     aws_api_gateway_integration.create_game,
     aws_api_gateway_integration.update_score,
     aws_api_gateway_integration.get_history,
+    aws_api_gateway_integration.get_game,
     aws_api_gateway_integration_response.games_options,
     aws_api_gateway_integration_response.score_options,
-    aws_api_gateway_integration_response.history_options
+    aws_api_gateway_integration_response.history_options,
+    aws_api_gateway_integration_response.game_id_options
   ]
   rest_api_id = aws_api_gateway_rest_api.this.id
-  
+
   lifecycle {
     create_before_destroy = true
   }

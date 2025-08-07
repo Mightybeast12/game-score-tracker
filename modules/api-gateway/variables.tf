@@ -35,6 +35,16 @@ variable "get_history_lambda_invoke_arn" {
 }
 
 variable "get_history_lambda_function_name" {
-  description = "Function name of the get history Lambda"
+  description = "Name of the get history Lambda function"
+  type        = string
+}
+
+variable "get_game_lambda_invoke_arn" {
+  description = "Invoke ARN of the get game Lambda function"
+  type        = string
+}
+
+variable "get_game_lambda_function_name" {
+  description = "Name of the get game Lambda function"
   type        = string
 }
