@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APP_NAME_PLACEHOLDER Score Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .scoreboard { display: flex; justify-content: space-between; margin: 20px 0; }
+        .player { text-align: center; flex: 1; margin: 0 10px; }
+        .score { font-size: 2em; font-weight: bold; margin: 10px 0; }
+        .points { font-size: 3em; color: #2196F3; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; }
+        .btn-primary { background: #2196F3; color: white; border: none; border-radius: 4px; }
+        .btn-success { background: #4CAF50; color: white; border: none; border-radius: 4px; }
+        .game-setup { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 4px; }
+        .hidden { display: none; }
+        .history-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .history-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; max-width: 80%; max-height: 80%; overflow-y: auto; }
+        .game-item { border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 4px; }
+        .game-header { font-weight: bold; margin-bottom: 10px; }
+        .game-score { display: flex; justify-content: space-between; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>🏆 APP_NAME_PLACEHOLDER Score Tracker</h1>
+    
+    <button class="btn-primary" onclick="showHistory()">View Game History</button>
+    
+    <div id="gameSetup" class="game-setup">
+        <h2>Start New Game</h2>
+        <input type="text" id="player1Name" placeholder="Player 1 Name" value="Player 1">
+        <input type="text" id="player2Name" placeholder="Player 2 Name" value="Player 2">
+        <button class="btn-primary" onclick="startGame()">Start Game</button>
+    </div>
+    
+    <div id="gameBoard" class="hidden">
+        <div class="scoreboard">
+            <div class="player">
+                <h3 id="player1Display">Player 1</h3>
+                <div class="score">Sets: <span id="sets1">0</span></div>
+                <div class="score">Games: <span id="games1">0</span></div>
+                <div class="points" id="points1">0</div>
+                <button class="btn-success" onclick="scorePoint('player1')">Score Point</button>
+            </div>
+            <div class="player">
+                <h3 id="player2Display">Player 2</h3>
+                <div class="score">Sets: <span id="sets2">0</span></div>
+                <div class="score">Games: <span id="games2">0</span></div>
+                <div class="points" id="points2">0</div>
+                <button class="btn-success" onclick="scorePoint('player2')">Score Point</button>
+            </div>
+        </div>
+        <div id="gameStatus"></div>
+        <button class="btn-primary" onclick="newGame()">New Game</button>
+    </div>
+
+    <div id="historyModal" class="history-modal hidden">
+        <div class="history-content">
+            <h2>Game History</h2>
+            <div id="historyList"></div>
+            <button class="btn-primary" onclick="closeHistory()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        let currentGameId = null;
+        const API_BASE = 'API_GATEWAY_URL_PLACEHOLDER';
+        
+        function convertPoints(points) {
+            const pointMap = { 0: '0', 1: '15', 2: '30', 3: '40' };
+            return pointMap[points] || points;
+        }
+        
+        async function startGame() {
+            const player1 = document.getElementById('player1Name').value;
+            const player2 = document.getElementById('player2Name').value;
+            
+            console.log('Starting game with API:', API_BASE);
+            
+            try {
+                const response = await fetch(`${API_BASE}/games`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player1, player2 })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Game created:', data);
+                currentGameId = data.game_id;
+                
+                document.getElementById('player1Display').textContent = player1;
+                document.getElementById('player2Display').textContent = player2;
+                document.getElementById('gameSetup').classList.add('hidden');
+                document.getElementById('gameBoard').classList.remove('hidden');
+                
+                updateScore({ points: {player1: 0, player2: 0}, games: {player1: 0, player2: 0}, sets: {player1: 0, player2: 0} });
+            } catch (error) {
+                console.error('Error starting game:', error);
+                alert('Error starting game: ' + error.message);
+            }
+        }
+        
+        async function scorePoint(player) {
+            if (!currentGameId) return;
+            
+            console.log('Scoring point for:', player, 'Game ID:', currentGameId);
+            
+            try {
+                const response = await fetch(`${API_BASE}/games/score`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ game_id: currentGameId, player })
+                });
+                
+                console.log('Score response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Score response data:', data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                updateScore(data);
+                
+                if (data.status === 'completed') {
+                    const winner = data.winner === 'player1' ? document.getElementById('player1Display').textContent : document.getElementById('player2Display').textContent;
+                    document.getElementById('gameStatus').innerHTML = `<h2>🏆 ${winner} Wins!</h2>`;
+                }
+            } catch (error) {
+                console.error('Error updating score:', error);
+                alert('Error updating score: ' + error.message);
+            }
+        }
+        
+        function updateScore(data) {
+            console.log('Updating score with data:', data);
+            
+            if (!data || !data.sets || !data.games || !data.points) {
+                console.error('Invalid score data:', data);
+                return;
+            }
+            
+            document.getElementById('sets1').textContent = data.sets.player1 || 0;
+            document.getElementById('sets2').textContent = data.sets.player2 || 0;
+            document.getElementById('games1').textContent = data.games.player1 || 0;
+            document.getElementById('games2').textContent = data.games.player2 || 0;
+            document.getElementById('points1').textContent = convertPoints(data.points.player1 || 0);
+            document.getElementById('points2').textContent = convertPoints(data.points.player2 || 0);
+        }
+        
+        function newGame() {
+            currentGameId = null;
+            document.getElementById('gameSetup').classList.remove('hidden');
+            document.getElementById('gameBoard').classList.add('hidden');
+            document.getElementById('gameStatus').innerHTML = '';
+        }
+        
+        async function showHistory() {
+            try {
+                const response = await fetch(`${API_BASE}/games/history`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                displayHistory(data.games);
+                document.getElementById('historyModal').classList.remove('hidden');
+            } catch (error) {
+                console.error('Error fetching history:', error);
+                alert('Error fetching history: ' + error.message);
+            }
+        }
+        
+        function displayHistory(games) {
+            const historyList = document.getElementById('historyList');
+            
+            if (!games || games.length === 0) {
+                historyList.innerHTML = '<p>No games found.</p>';
+                return;
+            }
+            
+            historyList.innerHTML = games.map(game => {
+                const date = new Date(game.created_at).toLocaleString();
+                const status = game.status === 'completed' ? 
+                    `Winner: ${game.winner === 'player1' ? game.player1 : game.player2}` : 
+                    'In Progress';
+                
+                return `
+                    <div class="game-item">
+                        <div class="game-header">${game.player1} vs ${game.player2} - ${date}</div>
+                        <div class="game-score">
+                            <span>Sets: ${game.sets.player1} - ${game.sets.player2}</span>
+                            <span>Games: ${game.games.player1} - ${game.games.player2}</span>
+                            <span>Points: ${convertPoints(game.points.player1)} - ${convertPoints(game.points.player2)}</span>
+                        </div>
+                        <div>${status}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function closeHistory() {
+            document.getElementById('historyModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
