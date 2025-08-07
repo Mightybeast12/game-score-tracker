@@ -26,19 +26,11 @@ variable "table_arn" {
 variable "runtime" {
   description = "Lambda runtime"
   type        = string
-  default     = "python3.9"
+  default     = "python3.12"
 }
 
 variable "common_tags" {
   description = "Common tags to apply to resources"
   type        = map(string)
   default     = {}
-}
-
-output "function_name" {
-  value = aws_lambda_function.this.function_name
-}
-
-output "invoke_arn" {
-  value = aws_lambda_function.this.invoke_arn
 }

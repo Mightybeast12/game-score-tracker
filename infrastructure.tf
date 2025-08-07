@@ -1,57 +1,68 @@
 # VPC and networking
 module "vpc" {
-  source = "./modules/vpc"
-  name   = "${var.app_name}-tracker"
+  source      = "./modules/vpc"
+  name        = "${var.app_name}-${var.environment}"
+  common_tags = local.common_tags
 }
 
 # DynamoDB
 module "dynamodb" {
-  source              = "./modules/dynamodb"
-  table_name          = "${var.app_name}-games"
-  deletion_protection = var.enable_deletion_protection
+  source                        = "./modules/dynamodb"
+  table_name                    = "${var.app_name}-${var.environment}-games"
+  deletion_protection           = var.destroy_mode ? false : var.enable_deletion_protection
+  enable_point_in_time_recovery = var.destroy_mode ? false : var.enable_point_in_time_recovery
+  common_tags                   = local.common_tags
 }
 
 # Lambda functions
 module "create_game_lambda" {
-  source        = "./modules/lambda"
-  function_name = "${var.app_name}-create-game"
+  source        = "./modules/lambda-create-game"
+  function_name = "${var.app_name}-${var.environment}-create-game"
   filename      = "lambdas/create_game.py"
   handler       = "create_game.lambda_handler"
+  runtime       = var.lambda_runtime
   table_name    = module.dynamodb.table_name
   table_arn     = module.dynamodb.table_arn
+  common_tags   = local.common_tags
 }
 
 module "score_updater_lambda" {
-  source        = "./modules/lambda"
-  function_name = "${var.app_name}-score-updater"
+  source        = "./modules/lambda-score-updater"
+  function_name = "${var.app_name}-${var.environment}-score-updater"
   filename      = "lambdas/score_updater.py"
   handler       = "score_updater.lambda_handler"
+  runtime       = var.lambda_runtime
   table_name    = module.dynamodb.table_name
   table_arn     = module.dynamodb.table_arn
+  common_tags   = local.common_tags
 }
 
 module "get_history_lambda" {
-  source        = "./modules/lambda"
-  function_name = "${var.app_name}-get-history"
+  source        = "./modules/lambda-get-history"
+  function_name = "${var.app_name}-${var.environment}-get-history"
   filename      = "lambdas/get_history.py"
   handler       = "get_history.lambda_handler"
+  runtime       = var.lambda_runtime
   table_name    = module.dynamodb.table_name
   table_arn     = module.dynamodb.table_arn
+  common_tags   = local.common_tags
 }
 
 # ECR
 module "ecr" {
   source          = "./modules/ecr"
-  repository_name = "${var.app_name}-frontend"
+  repository_name = "${var.app_name}-${var.environment}-frontend"
   force_delete    = var.force_delete_ecr
+  common_tags     = local.common_tags
 }
 
 # ALB
 module "alb" {
-  source  = "./modules/alb"
-  name    = "${var.app_name}-tracker-alb"
-  vpc_id  = module.vpc.vpc_id
-  subnets = module.vpc.public_subnet_ids
+  source      = "./modules/alb"
+  name        = "${var.app_name}-${var.environment}-alb"
+  vpc_id      = module.vpc.vpc_id
+  subnets     = module.vpc.public_subnet_ids
+  common_tags = local.common_tags
 }
 
 # Security Groups
@@ -77,7 +88,7 @@ module "frontend" {
 # API Gateway
 module "api_gateway" {
   source                             = "./modules/api-gateway"
-  api_name                           = "${var.app_name}-tracker-api"
+  api_name                           = "${var.app_name}-${var.environment}-api"
   create_game_lambda_invoke_arn      = module.create_game_lambda.invoke_arn
   create_game_lambda_function_name   = module.create_game_lambda.function_name
   score_updater_lambda_invoke_arn    = module.score_updater_lambda.invoke_arn

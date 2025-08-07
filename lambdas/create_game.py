@@ -12,14 +12,16 @@ def lambda_handler(event, context):
         body = json.loads(event.get('body', '{}'))
         player1 = body.get('player1', 'Player 1')
         player2 = body.get('player2', 'Player 2')
+        game_type = body.get('gameType', 'tennis')
         
         game_id = str(uuid.uuid4())
         
-        # Tennis scoring structure
+        # Game scoring structure
         game_item = {
             'game_id': game_id,
             'player1': player1,
             'player2': player2,
+            'game_type': game_type,
             'sets': {
                 'player1': 0,
                 'player2': 0

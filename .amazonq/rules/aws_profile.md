@@ -1,1 +1,0 @@
-run export AWS_PROFILE=personal

@@ -13,6 +13,8 @@ resource "aws_iam_role" "lambda_exec" {
       }
     ]
   })
+
+  tags = var.common_tags
 }
 
 resource "aws_iam_role_policy" "lambda_dynamodb" {
@@ -27,10 +29,7 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
         Action = [
           "dynamodb:GetItem",
           "dynamodb:PutItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:Query",
-          "dynamodb:Scan"
+          "dynamodb:UpdateItem"
         ]
         Resource = var.table_arn
       }
@@ -56,6 +55,7 @@ resource "aws_lambda_function" "this" {
   handler          = var.handler
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   runtime          = var.runtime
+  timeout          = 30
 
   environment {
     variables = {

@@ -14,3 +14,9 @@ variable "az_count" {
   type        = number
   default     = 2
 }
+
+variable "common_tags" {
+  description = "Common tags to apply to resources"
+  type        = map(string)
+  default     = {}
+}

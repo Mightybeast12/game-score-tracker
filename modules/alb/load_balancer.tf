@@ -6,9 +6,9 @@ resource "aws_lb" "this" {
   security_groups    = [aws_security_group.alb.id]
   subnets            = var.subnets
 
-  tags = {
+  tags = merge(var.common_tags, {
     Name = var.name
-  }
+  })
 }
 
 resource "aws_lb_target_group" "this" {
@@ -28,9 +28,9 @@ resource "aws_lb_target_group" "this" {
     matcher             = "200"
   }
 
-  tags = {
+  tags = merge(var.common_tags, {
     Name = "${var.name}-tg"
-  }
+  })
 }
 
 resource "aws_lb_listener" "this" {

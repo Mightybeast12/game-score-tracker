@@ -8,3 +8,9 @@ variable "force_delete" {
   type        = bool
   default     = true
 }
+
+variable "common_tags" {
+  description = "Common tags to apply to resources"
+  type        = map(string)
+  default     = {}
+}

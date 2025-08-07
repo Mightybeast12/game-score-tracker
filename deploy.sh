@@ -6,6 +6,10 @@ echo "🏆 Deploying Score Tracker..."
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 REGION=$(aws configure get region)
 APP_NAME=$(grep '^app_name' terraform.tfvars | cut -d'"' -f2)
+ENVIRONMENT="dev"  # Default environment
+ECR_REPO_NAME="${APP_NAME}-${ENVIRONMENT}-frontend"
+ECS_CLUSTER_NAME="${APP_NAME}-tracker"
+ECS_SERVICE_NAME="${APP_NAME}-frontend"
 
 # Deploy infrastructure first
 echo "Deploying infrastructure..."
@@ -21,8 +25,8 @@ docker build -t ${APP_NAME}-frontend .
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
 
 # Tag and push image
-docker tag ${APP_NAME}-frontend:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${APP_NAME}-frontend:latest
-docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${APP_NAME}-frontend:latest
+docker tag ${APP_NAME}-frontend:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${ECR_REPO_NAME}:latest
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${ECR_REPO_NAME}:latest
 
 cd ..
 
@@ -38,8 +42,8 @@ mv frontend/index.html.tmp frontend/index.html
 # Rebuild and push updated frontend
 cd frontend
 docker build -t ${APP_NAME}-frontend .
-docker tag ${APP_NAME}-frontend:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${APP_NAME}-frontend:latest
-docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${APP_NAME}-frontend:latest
+docker tag ${APP_NAME}-frontend:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${ECR_REPO_NAME}:latest
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${ECR_REPO_NAME}:latest
 cd ..
 
 # Force ECS service update
